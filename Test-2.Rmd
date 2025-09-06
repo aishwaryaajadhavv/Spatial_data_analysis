@@ -1,7 +1,82 @@
+install.packages("sf", dependencies = TRUE) install.packages("terra", dependencies = TRUE) install.packages(c("spData", "mapview", "ggplot2", "tmap")) install.packages("tidyverse", dependencies = TRUE) r
 
-{ r message = FALSE, warning = FALSE }
+library(sf) library(spData)
+
+data("cycle_hire_osm", package = "spData") head(cycle_hire_osm) \# plot first few rows
+
+plot(cycle_hire_osm["geometry"], axes = TRUE) st_crs(cycle_hire_osm) cycle_hire_osm \<- st_transform(cycle_hire_osm, crs = st_crs(32630)) \# UTM zone 30N for London head(cycle_hire_osm) library(mapview) mapview(cycle_hire_osm["capacity"], layer.name = "Rental capacity")
+
+```{r}
 library(sf)
-library(spData)
-{r}
-data("cycle_hire_osm", package = "spData")
-head(cycle_hire_osm) # plot first few rows
+data("seine", package = "spData")
+seine
+```
+
+```{r}
+library(ggplot2)
+
+ggplot(seine) +
+  geom_sf(aes(color = name)) +
+```
+
+```{r}
+geom_sf_label(aes(label = name)) # add labels for river names
+```
+
+```{r}
+data(world, package = "spData")
+head(world)
+breaks <- quantile(world$gdpPercap, probs = c(0.025, 0.25, 0.5, 0.75, 0.975), na.rm = TRUE) # get quantile values
+
+ggplot(world) + geom_sf(aes(fill = gdpPercap)) + 
+  scale_fill_gradientn(colours= c("#ffffcc", "#a1dab4" , "#41b6c4", "#2c7fb8", "#253494"), # binned color scale
+                       trans = 'log', # log-transformation
+                       breaks = breaks) +
+  theme_minimal()
+```
+
+Geometry operations
+
+```{r} 
+#Locate the center point of geometries
+world_pts <- st_centroid(world)
+
+```
+```{r}
+#Simplify shapes by removing vertices
+world_projected <- st_transform(world, "EPSG: 3857") # need to transform to projected CRS
+world_simple <- st_simplify(world_projected, dTolerance = 1e5) # 100km simplification
+```
+
+```{r}
+#Cast the simplified POLYGON objects back to type 'MULTIPOLYGON', and remove the rows with empty geometries
+
+world_simple <- st_cast(world_simple, "MULTIPOLYGON")
+world_simple <- world_simple[!st_is_empty(world_simple),] # subset rows
+
+```
+```{r}
+#Extend the boundaries of vectors
+world_buffered <- st_buffer(world_simple, dist = 1e5) # 100km
+```
+```{r}
+#Remove overlaps among the polygons in world_simple and merge all polygons
+world_diff <- st_difference(world_simple) # exclude overlaps
+world_union <- st_union(world_simple)
+```
+```{r}
+#Plot the manipulated objects derived from the country polygons
+#packages
+library(sf)
+library(tmap)
+sf_use_s2(FALSE)
+
+tm_shape(world_pts) + tm_dots() + # polygon centroids
+  tm_shape(world_simple) + tm_polygons(alpha = 0.5) + # simplified
+  tm_shape(world_buffered) + tm_polygons(alpha = 0.5) + # buffered
+  tm_shape(world_union) + tm_polygons(alpha = 0.5) + # merged (union)
+  tm_view(set.view = 2) # zoom in
+
+```
+
+
