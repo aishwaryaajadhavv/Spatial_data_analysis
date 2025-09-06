@@ -1,0 +1,7 @@
+
+{ r message = FALSE, warning = FALSE }
+library(sf)
+library(spData)
+{r}
+data("cycle_hire_osm", package = "spData")
+head(cycle_hire_osm) # plot first few rows
